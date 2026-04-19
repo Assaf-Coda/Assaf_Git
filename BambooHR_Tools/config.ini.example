@@ -1,0 +1,4 @@
+[BambooHR]
+Subdomain  = your-company    # the part before .bamboohr.com
+ApiKey     = xxxxxxxxxxxx    # BambooHR top-right menu > API Keys
+EmployeeId = 123             # visible in the URL of your profile page
