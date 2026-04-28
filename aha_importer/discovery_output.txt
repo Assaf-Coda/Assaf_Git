@@ -1,0 +1,51 @@
+======================================================================
+PRODUCTS & SUB-PRODUCTS
+======================================================================
+  APM                   1Agile Program Management (APM)
+  AI                    AI Artificial Intelligence
+  A20                   Analysis 2.0
+  ALIX                  Aria - Generative AI
+  CAS                   Aspect
+  C2                    Aspect Pipe Stress Engineering
+  GTS                   Aspect Structure
+  PVE                   Aspect Vessel and Tank
+  ASSET                 Attune APM
+  EAMP                  Attune EAM
+  EAMB                  Attune EAM Base
+  EAMD                  Attune EAM Digital Work
+  EAMT                  Attune EAM Mobile Offline
+  EAMCO                 Attune EAM Tech Studio
+  PPE                   Build
+  BTT                   Business Template Testing
+  CALLISTO              Callisto Staging Workspace
+  CLP                   Clipper
+  CLD                   Cloud
+  CAP                   Cloud Admin Portal
+  CLDWX                 Cloudworx for Forte 3D
+  CLWXR                 Cloudworx for Forte Review
+  CODA                  Coda
+  CODAO                 Coda Orchestrator
+  CODAS                 Coda Spatial
+  CODAU                 Coda Umbrella
+  CODAV                 Coda Video
+  CODAVC                Coda Video Cloud ◀ TARGET
+  CI                    Competitive Intelligence
+  CM                    Configuration Management
+
+======================================================================
+RELEASES  (CODAVC)
+======================================================================
+  CODAVC-R-2       Coda 2027
+  CODAVC-R-1       Parking lot
+
+======================================================================
+FEATURE WORKFLOW STATUSES  (CODAVC)
+======================================================================
+⚠️  Not found: https://hexagonppm.aha.io/api/v1/products/CODAVC/workflow_statuses
+  (Could not retrieve — will use defaults)
+
+======================================================================
+CUSTOM FIELDS ON FEATURES  (CODAVC)
+======================================================================
+  No features exist yet — cannot introspect custom fields.
+  Create one test feature manually, then re-run this script.

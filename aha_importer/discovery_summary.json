@@ -1,0 +1,15 @@
+{
+  "product_key": "CODAVC",
+  "releases": [
+    {
+      "ref": "CODAVC-R-2",
+      "name": "Coda 2027"
+    },
+    {
+      "ref": "CODAVC-R-1",
+      "name": "Parking lot"
+    }
+  ],
+  "workflow_statuses": [],
+  "custom_fields": []
+}

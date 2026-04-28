@@ -1,0 +1,59 @@
+============================================================
+INSTRUCTIONS: RUNNING THE CLOUD STORAGE REPORT
+============================================================
+
+PREREQUISITES:
+1. You must have a Mac.
+2. You must have the Excel file and the Python script in the same folder.
+
+STEP 1: PREPARE FILES
+------------------------------------------------------------
+1. Ensure your folder is located at: Downloads/storage
+2. Ensure your Excel file is named EXACTLY: account_usage_export.xlsx
+3. Ensure your Python script is named: process_storage.py
+   (This script should contain the code provided in the chat)
+
+STEP 2: OPEN TERMINAL
+------------------------------------------------------------
+1. Press Command + Spacebar on your keyboard to open Spotlight Search.
+2. Type "Terminal" and press Enter.
+
+STEP 3: NAVIGATE TO THE FOLDER
+------------------------------------------------------------
+Copy and paste this command into Terminal and press Enter:
+
+cd ~/Downloads/storage
+
+STEP 4: INSTALL REQUIRED LIBRARIES (First Time Only)
+------------------------------------------------------------
+If you haven't done this before, you need to install the tools to read Excel files.
+Copy and paste this command and press Enter:
+
+pip3 install pandas openpyxl
+
+(Note: If it asks for a password or fails, try 'pip install pandas openpyxl' instead)
+
+STEP 5: RUN THE REPORT
+------------------------------------------------------------
+Copy and paste this command and press Enter:
+
+python3 process_storage.py
+
+STEP 6: VIEW RESULTS
+------------------------------------------------------------
+If successful, the script will create two new files in your folder:
+1. monthly_usage_summary.csv  (The summary with Total TB and Charges)
+2. processed_daily_usage.csv  (The detailed daily breakdown)
+
+You can open these files directly in Excel.
+
+============================================================
+TROUBLESHOOTING
+============================================================
+* Error: "No such file or directory":
+  - Make sure you ran the 'cd' command in Step 3.
+  - Check that your folder is actually named 'storage' inside 'Downloads'.
+
+* Error: "File not found":
+  - Check that your Excel file is named 'account_usage_export.xlsx'.
+  - Python is case-sensitive! 'Account_Usage.xlsx' is not the same as 'account_usage.xlsx'.
