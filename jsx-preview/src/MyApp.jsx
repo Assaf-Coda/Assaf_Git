@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTheme } from '@mui/material/styles';
 import octaveLogoWhite from './assets/octave-logo-white.png';
-import octaveFontUrl from './assets/OctaveDisplay-Regular.otf';
 import cam1Breakroom from './assets/cam1-breakroom.jpg';
 import cam2Cafeteria from './assets/cam2-cafeteria.jpg';
 import cam3Elevator from './assets/cam3-elevator.jpg';
@@ -15,20 +15,20 @@ import {
   CameraOff, Mic, MicOff, RotateCcw, ScreenShare,
 } from 'lucide-react';
 
-// ---- Tokens -------------------------------------------------------------
+// ---- Tokens (module-level defaults matching the MUI theme) ---------------
+// Sub-components reference these directly; the main component uses useTokens()
+// which reads from the MUI ThemeProvider, keeping the theme as the single source of truth.
 const tokens = {
   bgApp: '#F4F6F8',
   bgPanel: '#FFFFFF',
-  bgTopbar: '#00AA14',
+  bgTopbar: '#006B0D',
   bgTile: '#0F1419',
   bgGridArea: '#1A1F26',
   bgHover: 'rgba(15, 20, 25, 0.04)',
   bgSelected: '#E3F2FD',
-
   textPrimary: '#1A1F26',
   textSecondary: '#5A6470',
   textHint: '#8A95A0',
-
   primary: '#1976D2',
   primaryLight: '#E3F2FD',
   liveGreen: '#2E7D32',
@@ -40,13 +40,46 @@ const tokens = {
   aiPurple: '#7B3FA0',
   bookmarkBlue: '#1976D2',
   offline: '#9E9E9E',
-
   border: '#E0E4E8',
   divider: '#EEF1F4',
-
   shadow1: '0 1px 2px rgba(15, 20, 25, 0.04), 0 1px 3px rgba(15, 20, 25, 0.06)',
   shadow2: '0 2px 4px rgba(15, 20, 25, 0.06), 0 4px 12px rgba(15, 20, 25, 0.08)',
 };
+
+function useTokens() {
+  const theme = useTheme();
+  return {
+    bgApp: theme.palette.background.default,
+    bgPanel: theme.palette.background.paper,
+    bgTopbar: theme.palette.topbar,
+    bgTile: theme.palette.tile,
+    bgGridArea: theme.palette.gridArea,
+    bgHover: theme.palette.hover,
+    bgSelected: theme.palette.selected,
+
+    textPrimary: theme.palette.text.primary,
+    textSecondary: theme.palette.text.secondary,
+    textHint: theme.palette.text.disabled,
+
+    primary: theme.palette.primary.main,
+    primaryLight: theme.palette.primary.light,
+    liveGreen: theme.palette.success.main,
+    liveGreenBright: theme.palette.success.light,
+    recordingGreen: theme.palette.liveGreen,
+    recordingGreenDark: theme.palette.success.dark,
+    recordingRed: theme.palette.error.main,
+    warning: theme.palette.warning.main,
+    aiPurple: theme.palette.aiPurple,
+    bookmarkBlue: theme.palette.bookmarkBlue,
+    offline: theme.palette.offline,
+
+    border: theme.palette.border,
+    divider: theme.palette.divider,
+
+    shadow1: theme.shadows[1],
+    shadow2: theme.shadows[2],
+  };
+}
 
 function useViewportWidth() {
   const [width, setWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1920);
@@ -1385,6 +1418,7 @@ function HiddenStrip({ bottomPanelView, onChangeBottomPanel, alarmCount, mode })
 // ---- Main component -----------------------------------------------------
 
 export default function DC3Monitoring() {
+  const tokens = useTokens();
   const viewportWidth = useViewportWidth();
   const [siteState, setSiteState] = useState(sites);
   const [selectedTile, setSelectedTile] = useState(1);
@@ -1454,19 +1488,16 @@ export default function DC3Monitoring() {
     <div style={{
       height: '100vh', display: 'flex', flexDirection: 'column',
       background: tokens.bgApp,
-      fontFamily: '"OctaveDisplay", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       color: tokens.textPrimary, fontSize: 13, overflow: 'hidden',
     }}>
       <style>{`
-        @font-face {
-          font-family: 'OctaveDisplay';
-          src: url('${octaveFontUrl}') format('opentype');
-          font-weight: 400;
-          font-style: normal;
-        }
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.55; }
+        }
+        .topbar-search::placeholder {
+          color: rgba(255,255,255,0.75);
+          opacity: 1;
         }
       `}</style>
 
@@ -1491,14 +1522,14 @@ export default function DC3Monitoring() {
 
         <div style={{
           display: 'flex', alignItems: 'center',
-          background: 'rgba(255,255,255,0.12)', borderRadius: 4,
+          background: 'rgba(255,255,255,0.2)', borderRadius: 4,
           padding: '6px 10px', width: topbarSearchWidth, gap: 8,
           transition: 'width 200ms ease',
         }}>
           <Search size={14} strokeWidth={1.8} color="rgba(255,255,255,0.7)" />
-          <input placeholder={viewportWidth < 1366 ? 'Search…' : 'Search cameras, sites, events…'} style={{
+          <input className="topbar-search" placeholder={viewportWidth < 1366 ? 'Search…' : 'Search cameras, sites, events…'} aria-label="Search" style={{
             background: 'transparent', border: 'none', outline: 'none',
-            color: '#fff', fontSize: 12.5, flex: 1,
+            color: '#fff', fontSize: 12.5, flex: 1, fontFamily: 'inherit',
           }} />
           {viewportWidth >= 1366 && (
             <span style={{
