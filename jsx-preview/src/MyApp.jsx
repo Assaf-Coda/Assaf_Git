@@ -1,4 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import octaveLogoWhite from './assets/octave-logo-white.png';
+import octaveFontUrl from './assets/OctaveDisplay-Regular.otf';
+import cam1Breakroom from './assets/cam1-breakroom.jpg';
+import cam2Cafeteria from './assets/cam2-cafeteria.jpg';
+import cam3Elevator from './assets/cam3-elevator.jpg';
+import cam4Entrance from './assets/cam4-entrance.jpg';
 import {
   LayoutDashboard, Monitor, ShieldCheck, Bell, Search, Archive, Settings,
   HelpCircle, ChevronLeft, ChevronRight, ChevronDown, Folder, Video, Camera,
@@ -13,7 +19,7 @@ import {
 const tokens = {
   bgApp: '#F4F6F8',
   bgPanel: '#FFFFFF',
-  bgTopbar: '#1B5FA8',
+  bgTopbar: '#00AA14',
   bgTile: '#0F1419',
   bgGridArea: '#1A1F26',
   bgHover: 'rgba(15, 20, 25, 0.04)',
@@ -75,10 +81,10 @@ const sites = [
 ];
 
 const tiles = [
-  { id: 1, position: 1, cameraName: 'South Parking', cameraId: 'TOR-001', site: 'Toronto Office', status: 'recording', timestamp: '13:24:56', motion: true, isPTZ: false, image: 'parking' },
-  { id: 2, position: 2, cameraName: 'IL HQ Entrance A', cameraId: 'IL-007', site: 'IL office', status: 'recording', timestamp: '13:24:55', motion: false, isPTZ: true, image: 'entrance' },
-  { id: 3, position: 3, cameraName: 'IL HQ Augustin', cameraId: 'IL-005', site: 'IL office', status: 'online', timestamp: '13:24:54', motion: true, isPTZ: false, image: 'augustin' },
-  { id: 4, position: 4, cameraName: 'Gate C07', cameraId: 'BBT-022', site: 'BBT City Airport', status: 'offline', timestamp: null, motion: false, isPTZ: false, image: 'offline' },
+  { id: 1, position: 1, cameraName: 'New Break Room', cameraId: 'HQ-001', site: 'HQ Office', status: 'recording', timestamp: '13:24:56', motion: true, isPTZ: false, image: cam1Breakroom },
+  { id: 2, position: 2, cameraName: 'HQ Cafeteria', cameraId: 'HQ-002', site: 'HQ Office', status: 'recording', timestamp: '13:24:55', motion: false, isPTZ: true, image: cam2Cafeteria },
+  { id: 3, position: 3, cameraName: 'HQ Elevator 1', cameraId: 'HQ-003', site: 'HQ Office', status: 'online', timestamp: '13:24:54', motion: true, isPTZ: false, image: cam3Elevator },
+  { id: 4, position: 4, cameraName: 'HQ Front Entrance', cameraId: 'HQ-004', site: 'HQ Office', status: 'recording', timestamp: '13:24:53', motion: false, isPTZ: false, image: cam4Entrance },
 ];
 
 const timelineEvents = {
@@ -170,6 +176,17 @@ function IconButton({ icon: Icon, label, onClick, active, size = 16, dark = fals
   );
 }
 
+function CameraFrame({ src, name }) {
+  if (src && typeof src !== 'string') {
+    // imported image module
+    return <img src={src} alt={name || ''} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />;
+  }
+  if (typeof src === 'string' && (src.startsWith('/') || src.startsWith('data:') || src.endsWith('.jpg') || src.endsWith('.png'))) {
+    return <img src={src} alt={name || ''} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />;
+  }
+  return <FauxFrame kind={src} />;
+}
+
 function FauxFrame({ kind }) {
   if (kind === 'offline') {
     return (
@@ -255,7 +272,7 @@ function TileFitted({ tile, isSelected, isSyncSelected, onSelect, onToggleSync, 
         transition: 'outline 120ms ease',
       }}
     >
-      <FauxFrame kind={tile.image} />
+      <CameraFrame src={tile.image} name={tile.cameraName} />
 
       <div style={{
         position: 'absolute', top: 6, left: 6,
@@ -275,10 +292,10 @@ function TileFitted({ tile, isSelected, isSyncSelected, onSelect, onToggleSync, 
           padding: '3px 7px', borderRadius: 3,
           color: '#fff', fontSize: 10, fontWeight: 600, letterSpacing: 0.4,
         }}>
-          <StatusDot status={tile.status} size={6} animated />
-          {tile.status === 'recording' && <span style={{ color: '#FF8A8A' }}>{mode === 'playback' ? 'PLAYING' : 'REC'}</span>}
-          {tile.status === 'online' && <span>{mode === 'playback' ? 'PLAYING' : 'LIVE'}</span>}
-          {tile.status === 'offline' && <span style={{ color: '#8A95A0' }}>OFFLINE</span>}
+          <StatusDot status={mode === 'playback' ? 'recording' : 'online'} size={6} animated />
+          {mode === 'playback'
+            ? <span style={{ color: '#FF8A8A' }}>REC</span>
+            : <span>LIVE</span>}
           {tile.isPTZ && (
             <>
               <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
@@ -429,7 +446,7 @@ function CameraTile({ tile, isSelected, isSyncSelected, onSelect, onToggleSync, 
         boxShadow: isSelected ? tokens.shadow2 : 'none',
       }}
     >
-      <FauxFrame kind={tile.image} />
+      <CameraFrame src={tile.image} name={tile.cameraName} />
 
       <div style={{
         position: 'absolute', top: 8, left: 8,
@@ -449,10 +466,10 @@ function CameraTile({ tile, isSelected, isSyncSelected, onSelect, onToggleSync, 
           padding: '4px 8px', borderRadius: 3,
           color: '#fff', fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4,
         }}>
-          <StatusDot status={tile.status} size={6} animated />
-          {tile.status === 'recording' && <span style={{ color: '#FF8A8A' }}>{mode === 'playback' ? 'PLAYING' : 'REC'}</span>}
-          {tile.status === 'online' && <span>{mode === 'playback' ? 'PLAYING' : 'LIVE'}</span>}
-          {tile.status === 'offline' && <span style={{ color: '#8A95A0' }}>OFFLINE</span>}
+          <StatusDot status={mode === 'playback' ? 'recording' : 'online'} size={6} animated />
+          {mode === 'playback'
+            ? <span style={{ color: '#FF8A8A' }}>REC</span>
+            : <span>LIVE</span>}
           {tile.isPTZ && (
             <>
               <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
@@ -1437,10 +1454,16 @@ export default function DC3Monitoring() {
     <div style={{
       height: '100vh', display: 'flex', flexDirection: 'column',
       background: tokens.bgApp,
-      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontFamily: '"OctaveDisplay", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       color: tokens.textPrimary, fontSize: 13, overflow: 'hidden',
     }}>
       <style>{`
+        @font-face {
+          font-family: 'OctaveDisplay';
+          src: url('${octaveFontUrl}') format('opentype');
+          font-weight: 400;
+          font-style: normal;
+        }
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.55; }
@@ -1457,14 +1480,10 @@ export default function DC3Monitoring() {
         boxShadow: '0 1px 0 rgba(0,0,0,0.1)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 24, height: 24, background: '#fff',
-            clipPath: 'polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%)',
-          }} />
-          <div style={{ fontWeight: 700, letterSpacing: 1.2, fontSize: 15 }}>HEXAGON</div>
+          <img src={octaveLogoWhite} alt="Octave" style={{ height: 22 }} />
           <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.2)', marginLeft: 8 }} />
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>
-            dC3 Video Cloud
+            Coda Video Cloud
           </div>
         </div>
 
@@ -1747,12 +1766,12 @@ export default function DC3Monitoring() {
           {/* Tile grid */}
           <div style={{
             flex: 1,
-            background: tokens.bgGridArea,
+            background: '#000',
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gridTemplateRows: '1fr 1fr',
-            gap: 2,
-            padding: 2,
+            gap: 0,
+            padding: 0,
             minHeight: 0,
             overflow: 'hidden',
           }}>
