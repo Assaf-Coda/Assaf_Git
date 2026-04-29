@@ -1,5 +1,0 @@
-# User credentials — never commit real values
-config.ini
-
-# macOS
-.DS_Store
