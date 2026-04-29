@@ -12,7 +12,7 @@ import {
   WifiOff, Rewind, ZoomIn, Eye, EyeOff, Filter, Clock,
   PanelLeftClose, PanelLeftOpen, Play, Pause, SkipBack, SkipForward,
   Link2, Calendar, Download, AlertTriangle, ArrowRight, Volume2, VolumeX,
-  CameraOff, Mic, MicOff, RotateCcw, ScreenShare,
+  CameraOff, Mic, MicOff, RotateCcw, ScreenShare, Rows3,
 } from 'lucide-react';
 
 // ---- Tokens (module-level defaults matching the MUI theme) ---------------
@@ -297,6 +297,7 @@ function SlotTimelineOverlay({ tile, mode, showOverlay, scrubPosition, setScrubP
   const isPlayback = mode === 'playback';
   const trackHeight = compact ? 3 : 4;
   const outerHeight = compact ? 18 : 22;
+  const horizontalInset = compact ? 6 : 8;
   const playheadPosition = isPlayback ? 58 : 100;
   const events = tile.motion ? [22, 41, 58, 71, 84] : [];
 
@@ -310,7 +311,7 @@ function SlotTimelineOverlay({ tile, mode, showOverlay, scrubPosition, setScrubP
       }}
       onMouseLeave={() => setScrubPosition?.(null)}
       style={{
-        position: 'absolute', left: 0, right: 0, bottom: 0,
+        position: 'absolute', left: horizontalInset, right: horizontalInset, bottom: 0,
         height: outerHeight,
         background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.28))',
         opacity: showOverlay ? 1 : 0.55,
@@ -322,7 +323,7 @@ function SlotTimelineOverlay({ tile, mode, showOverlay, scrubPosition, setScrubP
     >
       <div style={{
         position: 'relative', width: '100%', height: trackHeight,
-        background: 'rgba(255,255,255,0.14)', margin: compact ? '0 6px 3px' : '0 8px 4px',
+        background: 'rgba(255,255,255,0.14)', margin: compact ? '0 0 3px' : '0 0 4px',
         borderRadius: 999,
         overflow: 'hidden',
       }}>
@@ -478,6 +479,7 @@ function TileFitted({ tile, isSelected, isSyncSelected, onSelect, onToggleSync, 
         width: '100%',
         height: '100%',
         background: tokens.bgTile,
+        borderRadius: 3,
         overflow: 'hidden',
         cursor: 'pointer',
         outline: isSelected ? `2px solid ${tokens.primary}` : isSyncSelected ? `2px solid ${tokens.aiPurple}` : 'none',
@@ -570,10 +572,12 @@ function TileFitted({ tile, isSelected, isSyncSelected, onSelect, onToggleSync, 
       )}
 
       <div style={{
-        position: 'absolute', left: 0, right: 0, bottom: 0,
+        position: 'absolute', left: 6, right: 6, bottom: 0,
         padding: '18px 10px 10px',
         background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.7) 50%)',
         color: '#fff',
+        borderBottomLeftRadius: 3,
+        borderBottomRightRadius: 3,
       }}>
         <div style={{
           fontSize: 12.5, fontWeight: 600, letterSpacing: 0.1,
@@ -806,9 +810,9 @@ function SiteRow({ site, onToggle, compact }) {
 
 // ---- View Mode Toggle (inline icon group used in bottom controls) ------
 
-function ViewModeToggle({ value, onChange, alarmCount, mode }) {
+function ViewModeToggle({ value, onChange, alarmCount, mode, splitTimeline, onToggleSplit }) {
   // In live mode, only show Live controls + Alarms + Hidden (no Timeline)
-  // In playback mode, show Timeline + Alarms + Hidden
+  // In playback mode, show Timeline + Alarms + Hidden + Split toggle
   const buttons = mode === 'playback' ? [
     { id: 'timeline', icon: Clock, label: 'Show timeline' },
     { id: 'alarms', icon: AlertTriangle, label: 'Show alarms', badge: alarmCount },
@@ -849,6 +853,326 @@ function ViewModeToggle({ value, onChange, alarmCount, mode }) {
           )}
         </button>
       ))}
+      {mode === 'playback' && onToggleSplit && (
+        <>
+          <div style={{ width: 1, height: 16, background: tokens.border, margin: '0 2px', alignSelf: 'center' }} />
+          <button
+            onClick={onToggleSplit}
+            title={splitTimeline ? 'Single timeline' : 'Split timeline per channel'}
+            style={{
+              padding: '5px 8px',
+              background: splitTimeline ? tokens.primaryLight : 'transparent',
+              border: 'none', borderRadius: 3, cursor: 'pointer',
+              color: splitTimeline ? tokens.primary : tokens.textSecondary,
+              display: 'inline-flex', alignItems: 'center',
+              boxShadow: splitTimeline ? tokens.shadow1 : 'none',
+            }}>
+            <Rows3 size={14} strokeWidth={1.8} />
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ---- Split Playback Timelines (one per channel) ------------------------
+
+function SplitPlaybackTimelines({
+  visibleTiles, currentPosition, onSeek,
+  isPlaying, onTogglePlay, playSpeed, onSpeedChange,
+  zoomLevel, onZoomChange,
+  bottomPanelView, onChangeBottomPanel, alarmCount,
+  splitTimeline, onToggleSplit,
+}) {
+  const [hoverPos, setHoverPos] = useState(null);
+  const trackRefs = useRef({});
+
+  const eventTypeColors = {
+    alert: tokens.recordingRed,
+    ai: tokens.aiPurple,
+    motion: tokens.warning,
+    bookmark: tokens.bookmarkBlue,
+  };
+
+  const positionToTime = (pos) => {
+    const minutes = Math.round((pos / 100) * 60);
+    const startHour = 12, startMin = 25;
+    const totalMin = startMin + minutes;
+    const hour = startHour + Math.floor(totalMin / 60);
+    const min = totalMin % 60;
+    const sec = Math.floor(((pos / 100 * 60) % 1) * 60);
+    return `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const handleTrackClick = (e, tileId) => {
+    const ref = trackRefs.current[tileId];
+    if (!ref) return;
+    const rect = ref.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    onSeek(Math.max(0, Math.min(100, x)));
+  };
+
+  const handleTrackMouseMove = (e, tileId) => {
+    const ref = trackRefs.current[tileId];
+    if (!ref) return;
+    const rect = ref.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    setHoverPos(Math.max(0, Math.min(100, x)));
+  };
+
+  const ZOOM_OPTIONS = ['15m', '1h', '6h', '24h', '7d'];
+  const LANE_HEIGHT = 14;
+  const LABEL_WIDTH = 48;
+  const LABEL_GAP = 8;
+  const ROW_PADDING_X = 8;
+  const TRACK_LEFT_OFFSET = ROW_PADDING_X + LABEL_WIDTH + LABEL_GAP;
+  const TRACK_RIGHT_OFFSET = ROW_PADDING_X;
+  const activeTiles = visibleTiles.filter(t => t.status !== 'offline');
+
+  return (
+    <div style={{ background: tokens.bgPanel, flexShrink: 0 }}>
+      {/* Time ruler (shared) */}
+      <div style={{ padding: '8px 12px 0' }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          marginBottom: 4,
+          fontSize: 10, color: tokens.textHint,
+          fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+          fontWeight: 500, letterSpacing: 0.3,
+        }}>
+          {[0, 10, 20, 30, 40, 50, 60].map(min => {
+            const total = 25 + min;
+            const h = 12 + Math.floor(total / 60);
+            const m = total % 60;
+            return <span key={min}>{h}:{m.toString().padStart(2, '0')}</span>;
+          })}
+        </div>
+      </div>
+
+      {/* Per-channel timelines */}
+      <div style={{ padding: '0 12px 2px', display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
+        {activeTiles.map((tile) => {
+          const gaps = recordingGaps[tile.cameraId] || [];
+          const events = timelineEvents[tile.cameraId] || [];
+
+          return (
+            <div key={tile.id} style={{
+              background: tokens.bgApp,
+              borderRadius: 3,
+              padding: '2px 8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+              {/* Camera label — inline */}
+              <div style={{
+                fontSize: 9, fontWeight: 600, color: tokens.textHint,
+                whiteSpace: 'nowrap',
+                width: LABEL_WIDTH,
+                fontFamily: 'ui-monospace, monospace',
+              }}>{tile.cameraId}</div>
+
+              {/* Timeline track */}
+              <div
+                ref={(el) => { trackRefs.current[tile.id] = el; }}
+                onClick={(e) => handleTrackClick(e, tile.id)}
+                onMouseMove={(e) => handleTrackMouseMove(e, tile.id)}
+                onMouseLeave={() => setHoverPos(null)}
+                style={{
+                  position: 'relative',
+                  height: LANE_HEIGHT,
+                  flex: 1,
+                  cursor: 'pointer',
+                }}
+              >
+                {/* Recording bar */}
+                <div style={{
+                  position: 'absolute', left: 0, right: 0,
+                  top: '50%', transform: 'translateY(-50%)',
+                  height: 6,
+                  background: tokens.recordingGreen,
+                  borderRadius: 1,
+                }} />
+                {/* Recording gaps */}
+                {gaps.map((gap, i) => (
+                  <div key={i} style={{
+                    position: 'absolute',
+                    left: `${gap.start}%`, width: `${gap.end - gap.start}%`,
+                    top: '50%', transform: 'translateY(-50%)',
+                    height: 6,
+                    background: tokens.divider,
+                    borderRadius: 1,
+                  }} />
+                ))}
+                {/* Events */}
+                {events.map((ev, i) => (
+                  <div key={i}
+                    title={`${ev.label || ev.type.toUpperCase()} · ${tile.cameraName} · ${positionToTime(ev.position)}`}
+                    style={{
+                      position: 'absolute',
+                      left: `${ev.position}%`,
+                      top: 3,
+                      height: LANE_HEIGHT - 6,
+                      width: 2,
+                      background: eventTypeColors[ev.type],
+                      transform: 'translateX(-1px)',
+                      cursor: 'pointer',
+                    }}
+                  />
+                ))}
+                {/* Hover line */}
+                {hoverPos !== null && (
+                  <div style={{
+                    position: 'absolute',
+                    left: `${hoverPos}%`, top: -4, bottom: -4,
+                    width: 1, background: tokens.textHint,
+                    pointerEvents: 'none',
+                  }}>
+                    <div style={{
+                      position: 'absolute', top: -18, left: -28,
+                      background: tokens.textPrimary, color: '#fff',
+                      fontSize: 10, padding: '2px 6px', borderRadius: 3,
+                      fontFamily: 'ui-monospace, monospace', whiteSpace: 'nowrap',
+                      fontWeight: 600,
+                      boxShadow: tokens.shadow2,
+                    }}>{positionToTime(hoverPos)}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {activeTiles.length > 0 && (
+          <div style={{
+            position: 'absolute',
+            left: `calc(${TRACK_LEFT_OFFSET}px + (100% - ${TRACK_LEFT_OFFSET + TRACK_RIGHT_OFFSET}px) * ${currentPosition / 100})`,
+            top: 0,
+            bottom: 0,
+            width: 1,
+            background: tokens.primary,
+            pointerEvents: 'none',
+            zIndex: 3,
+          }}>
+            <div style={{
+              position: 'absolute', top: -1, left: -4,
+              width: 9, height: 7,
+              background: tokens.primary,
+              clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
+            }} />
+            <div style={{
+              position: 'absolute', bottom: -1, left: -4,
+              width: 9, height: 7,
+              background: tokens.primary,
+              clipPath: 'polygon(0 100%, 100% 100%, 50% 0)',
+            }} />
+          </div>
+        )}
+      </div>
+
+      {/* Shared controls row */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '6px 12px 8px',
+        flexWrap: 'wrap',
+      }}>
+        <ViewModeToggle
+          value={bottomPanelView}
+          onChange={onChangeBottomPanel}
+          alarmCount={alarmCount}
+          mode="playback"
+          splitTimeline={splitTimeline}
+          onToggleSplit={onToggleSplit}
+        />
+
+        <div style={{ width: 1, height: 20, background: tokens.border }} />
+
+        {/* Date + time */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Calendar size={13} color={tokens.textSecondary} />
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontSize: 11.5, color: tokens.textSecondary, fontWeight: 500 }}>
+              Sun, Apr 26, 2026
+            </span>
+            <span style={{
+              fontSize: 14, fontWeight: 700,
+              fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+              color: tokens.textPrimary,
+              letterSpacing: 0.3,
+            }}>
+              {positionToTime(currentPosition)}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ width: 1, height: 20, background: tokens.border }} />
+
+        {/* Transport controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <IconButton icon={SkipBack} label="Skip backward 1 min" size={14} />
+          <IconButton icon={Rewind} label="Step back 1 frame" size={14} />
+          <button onClick={onTogglePlay} title={isPlaying ? 'Pause' : 'Play'} style={{
+            width: 32, height: 32, borderRadius: 4,
+            background: tokens.primary,
+            border: 'none', cursor: 'pointer',
+            color: '#fff', display: 'inline-flex',
+            alignItems: 'center', justifyContent: 'center',
+            margin: '0 2px', boxShadow: tokens.shadow1,
+          }}>
+            {isPlaying ? <Pause size={14} strokeWidth={2.5} fill="#fff" /> : <Play size={14} strokeWidth={2.5} fill="#fff" style={{ marginLeft: 1 }} />}
+          </button>
+          <button title="Step forward 1 frame" style={{
+            background: 'transparent', border: 'none', borderRadius: 4,
+            padding: 6, cursor: 'pointer', color: tokens.textSecondary,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Rewind size={14} strokeWidth={1.8} style={{ transform: 'rotate(180deg)' }} />
+          </button>
+          <IconButton icon={SkipForward} label="Skip forward 1 min" size={14} />
+        </div>
+
+        {/* Speed */}
+        <div style={{
+          display: 'flex', gap: 1, padding: 2,
+          background: tokens.divider, borderRadius: 4,
+        }}>
+          {['0.5x', '1x', '2x', '4x', '8x'].map(s => (
+            <button key={s} onClick={() => onSpeedChange(s)} style={{
+              padding: '4px 7px',
+              background: playSpeed === s ? tokens.bgPanel : 'transparent',
+              border: 'none', borderRadius: 3, cursor: 'pointer',
+              color: playSpeed === s ? tokens.textPrimary : tokens.textSecondary,
+              fontSize: 11, fontWeight: 600,
+              fontFamily: 'ui-monospace, monospace',
+              boxShadow: playSpeed === s ? tokens.shadow1 : 'none',
+            }}>{s}</button>
+          ))}
+        </div>
+
+        <div style={{ flex: 1 }} />
+
+        <div style={{
+          fontSize: 12, color: tokens.textSecondary, fontWeight: 500,
+        }}>
+          {activeTiles.length} channels
+        </div>
+
+        <div style={{
+          display: 'flex', gap: 1, padding: 2,
+          background: tokens.divider, borderRadius: 4,
+        }}>
+          {ZOOM_OPTIONS.map(z => (
+            <button key={z} onClick={() => onZoomChange(z)} style={{
+              padding: '4px 7px',
+              background: zoomLevel === z ? tokens.bgPanel : 'transparent',
+              border: 'none', borderRadius: 3, cursor: 'pointer',
+              color: zoomLevel === z ? tokens.textPrimary : tokens.textSecondary,
+              fontSize: 11, fontWeight: 600,
+              boxShadow: zoomLevel === z ? tokens.shadow1 : 'none',
+            }}>{z}</button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -861,6 +1185,7 @@ function PlaybackTimeline({
   zoomLevel, onZoomChange, currentPosition, onSeek,
   visibleTiles,
   bottomPanelView, onChangeBottomPanel, alarmCount,
+  splitTimeline, onToggleSplit,
 }) {
   const timelineRef = useRef(null);
   const [hoverPos, setHoverPos] = useState(null);
@@ -1062,6 +1387,8 @@ function PlaybackTimeline({
           onChange={onChangeBottomPanel}
           alarmCount={alarmCount}
           mode="playback"
+          splitTimeline={splitTimeline}
+          onToggleSplit={onToggleSplit}
         />
 
         <div style={{ width: 1, height: 20, background: tokens.border }} />
@@ -1495,7 +1822,7 @@ function AlarmList({
 
 // ---- Hidden Strip (when bottom panel is hidden) -------------------------
 
-function HiddenStrip({ bottomPanelView, onChangeBottomPanel, alarmCount, mode }) {
+function HiddenStrip({ bottomPanelView, onChangeBottomPanel, alarmCount, mode, splitTimeline, onToggleSplit }) {
   return (
     <div style={{
       background: tokens.bgPanel,
@@ -1508,6 +1835,8 @@ function HiddenStrip({ bottomPanelView, onChangeBottomPanel, alarmCount, mode })
         onChange={onChangeBottomPanel}
         alarmCount={alarmCount}
         mode={mode}
+        splitTimeline={splitTimeline}
+        onToggleSplit={onToggleSplit}
       />
       <div style={{
         fontSize: 11, color: tokens.textHint,
@@ -1561,6 +1890,7 @@ export default function DC3Monitoring() {
   const [currentPosition, setCurrentPosition] = useState(48);
   const [syncMode, setSyncMode] = useState(false);
   const [syncedTiles, setSyncedTiles] = useState([1]);
+  const [splitTimeline, setSplitTimeline] = useState(false);
 
   const toggleSite = (name) => {
     setSiteState((prev) => prev.map((s) => (s.name === name ? { ...s, expanded: !s.expanded } : s)));
@@ -1929,11 +2259,12 @@ export default function DC3Monitoring() {
           {/* Tile grid */}
           <div style={{
             flex: 1,
-            background: '#000',
+            background: tokens.border,
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gridTemplateRows: '1fr 1fr',
-            gap: 0,
+            columnGap: 1,
+            rowGap: 3,
             padding: 0,
             minHeight: 0,
             overflow: 'hidden',
@@ -1960,30 +2291,53 @@ export default function DC3Monitoring() {
                 onChangeBottomPanel={setBottomPanelView}
                 alarmCount={newAlarmCount}
                 mode={mode}
+                splitTimeline={splitTimeline}
+                onToggleSplit={() => setSplitTimeline(!splitTimeline)}
               />
             </div>
           )}
 
           {bottomPanelView === 'timeline' && mode === 'playback' && (
             <div style={{ borderTop: `1px solid ${tokens.border}` }}>
-              <PlaybackTimeline
-                selectedTile={selectedTile}
-                syncMode={syncMode}
-                syncedTiles={syncedTiles}
-                onToggleSyncMode={handleToggleSyncMode}
-                isPlaying={isPlaying}
-                onTogglePlay={() => setIsPlaying(!isPlaying)}
-                playSpeed={playSpeed}
-                onSpeedChange={setPlaySpeed}
-                zoomLevel={zoomLevel}
-                onZoomChange={setZoomLevel}
-                currentPosition={currentPosition}
-                onSeek={setCurrentPosition}
-                visibleTiles={tiles}
-                bottomPanelView={bottomPanelView}
-                onChangeBottomPanel={setBottomPanelView}
-                alarmCount={newAlarmCount}
-              />
+              {splitTimeline ? (
+                <SplitPlaybackTimelines
+                  visibleTiles={tiles}
+                  currentPosition={currentPosition}
+                  onSeek={setCurrentPosition}
+                  isPlaying={isPlaying}
+                  onTogglePlay={() => setIsPlaying(!isPlaying)}
+                  playSpeed={playSpeed}
+                  onSpeedChange={setPlaySpeed}
+                  zoomLevel={zoomLevel}
+                  onZoomChange={setZoomLevel}
+                  bottomPanelView={bottomPanelView}
+                  onChangeBottomPanel={setBottomPanelView}
+                  alarmCount={newAlarmCount}
+                  splitTimeline={splitTimeline}
+                  onToggleSplit={() => setSplitTimeline(!splitTimeline)}
+                />
+              ) : (
+                <PlaybackTimeline
+                  selectedTile={selectedTile}
+                  syncMode={syncMode}
+                  syncedTiles={syncedTiles}
+                  onToggleSyncMode={handleToggleSyncMode}
+                  isPlaying={isPlaying}
+                  onTogglePlay={() => setIsPlaying(!isPlaying)}
+                  playSpeed={playSpeed}
+                  onSpeedChange={setPlaySpeed}
+                  zoomLevel={zoomLevel}
+                  onZoomChange={setZoomLevel}
+                  currentPosition={currentPosition}
+                  onSeek={setCurrentPosition}
+                  visibleTiles={tiles}
+                  bottomPanelView={bottomPanelView}
+                  onChangeBottomPanel={setBottomPanelView}
+                  alarmCount={newAlarmCount}
+                  splitTimeline={splitTimeline}
+                  onToggleSplit={() => setSplitTimeline(!splitTimeline)}
+                />
+              )}
             </div>
           )}
 
