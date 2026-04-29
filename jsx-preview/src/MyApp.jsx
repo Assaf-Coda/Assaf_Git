@@ -120,6 +120,19 @@ const tiles = [
   { id: 4, position: 4, cameraName: 'HQ Front Entrance', cameraId: 'HQ-004', site: 'HQ Office', status: 'recording', timestamp: '13:24:53', motion: false, isPTZ: false, image: cam4Entrance },
 ];
 
+const layoutLibrary = {
+  public: [
+    { name: '2x2 Overview', type: 'layout' },
+    { name: 'Lobby Matrix', type: 'layout' },
+    { name: 'HQ Mixed View', type: 'layout' },
+    { name: 'Entrance Focus', type: 'layout' },
+  ],
+  private: [
+    { name: 'Ops War Room', type: 'layout' },
+    { name: 'Executive Monitor', type: 'layout' },
+  ],
+};
+
 const timelineEvents = {
   'TOR-001': [
     { type: 'motion', position: 8 },
@@ -280,6 +293,173 @@ function FauxFrame({ kind }) {
   );
 }
 
+function SlotTimelineOverlay({ tile, mode, showOverlay, scrubPosition, setScrubPosition, compact = false }) {
+  const isPlayback = mode === 'playback';
+  const trackHeight = compact ? 3 : 4;
+  const outerHeight = compact ? 18 : 22;
+  const playheadPosition = isPlayback ? 58 : 100;
+  const events = tile.motion ? [22, 41, 58, 71, 84] : [];
+
+  return (
+    <div
+      onMouseMove={(e) => {
+        if (!setScrubPosition) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        setScrubPosition(Math.max(0, Math.min(100, x)));
+      }}
+      onMouseLeave={() => setScrubPosition?.(null)}
+      style={{
+        position: 'absolute', left: 0, right: 0, bottom: 0,
+        height: outerHeight,
+        background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.28))',
+        opacity: showOverlay ? 1 : 0.55,
+        transition: 'opacity 200ms ease',
+        cursor: 'ew-resize',
+        pointerEvents: 'auto',
+        display: 'flex', alignItems: 'flex-end',
+      }}
+    >
+      <div style={{
+        position: 'relative', width: '100%', height: trackHeight,
+        background: 'rgba(255,255,255,0.14)', margin: compact ? '0 6px 3px' : '0 8px 4px',
+        borderRadius: 999,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute', left: 0, top: 0, bottom: 0,
+          width: `${playheadPosition}%`,
+          background: isPlayback ? 'rgba(56,142,60,0.55)' : 'rgba(56,142,60,0.65)',
+        }} />
+        {events.map((pos) => (
+          <div key={pos} style={{
+            position: 'absolute', left: `${pos}%`, top: -1, bottom: -1,
+            width: 2, background: tokens.warning,
+            opacity: 0.9,
+          }} />
+        ))}
+        <div style={{
+          position: 'absolute', left: `${playheadPosition}%`, top: compact ? -2 : -3, bottom: compact ? -2 : -3, width: 2,
+          background: '#2E7D32', boxShadow: '0 0 8px rgba(46,125,50,0.9)',
+        }} />
+        {scrubPosition !== null && (
+          <div style={{
+            position: 'absolute', left: `${scrubPosition}%`, top: compact ? -7 : -8, bottom: compact ? -7 : -8,
+            width: 1, background: '#fff', pointerEvents: 'none',
+          }}>
+            <div style={{
+              position: 'absolute', bottom: compact ? 12 : 14, left: -22,
+              background: 'rgba(0,0,0,0.72)', color: '#fff',
+              fontSize: 10, padding: '3px 6px', borderRadius: 3,
+              fontFamily: 'ui-monospace, monospace', whiteSpace: 'nowrap',
+              backdropFilter: 'blur(8px)',
+            }}>{isPlayback ? `-${Math.round((100 - scrubPosition) / 100 * 15)}min` : 'LIVE'}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LibraryTabButton({ active, label, icon: Icon, onClick, compact, placeholder = false }) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      style={{
+        flex: 1,
+        height: compact ? 30 : 34,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        background: active ? tokens.bgPanel : 'transparent',
+        color: active ? tokens.textPrimary : tokens.textHint,
+        border: 'none',
+        borderRadius: 6,
+        cursor: 'pointer',
+        fontSize: placeholder ? 10.5 : 12,
+        fontWeight: active ? 600 : 500,
+        boxShadow: active ? tokens.shadow1 : 'none',
+        transition: 'all 150ms ease',
+      }}
+    >
+      {Icon ? <Icon size={compact ? 14 : 16} strokeWidth={1.8} /> : <span>{label}</span>}
+    </button>
+  );
+}
+
+function LayoutLibraryList({ compact }) {
+  const renderSection = (title, items) => (
+    <div style={{ marginBottom: 10 }}>
+      {!compact && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          padding: '0 8px 6px',
+          color: tokens.textHint,
+          fontSize: 11,
+          textTransform: 'uppercase',
+          letterSpacing: 0.8,
+          fontWeight: 600,
+        }}>{title}</div>
+      )}
+      {items.map((item) => (
+        <button
+          key={`${title}-${item.name}`}
+          style={{
+            width: '100%',
+            border: 'none',
+            background: tokens.bgApp,
+            borderRadius: 6,
+            padding: compact ? '9px 10px' : '10px 12px',
+            marginBottom: 6,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            color: tokens.textPrimary,
+            cursor: 'pointer',
+          }}
+        >
+          <Grid3x3 size={compact ? 14 : 15} color={tokens.textSecondary} />
+          <span style={{
+            flex: 1,
+            textAlign: 'left',
+            fontSize: compact ? 11.5 : 12.5,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>{item.name}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: compact ? '8px 8px 12px' : '6px 12px 12px' }}>
+      {renderSection('Public', layoutLibrary.public)}
+      {renderSection('Private', layoutLibrary.private)}
+    </div>
+  );
+}
+
+function PlaceholderLibraryPanel({ label }) {
+  return (
+    <div style={{
+      flex: 1,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: tokens.textHint,
+      fontSize: 12,
+      padding: 20,
+      textAlign: 'center',
+    }}>
+      {label} content TBD
+    </div>
+  );
+}
+
 // ---- Camera tile (fills grid cell, video centered/letterboxed inside) --
 
 function TileFitted({ tile, isSelected, isSyncSelected, onSelect, onToggleSync, mode, syncMode }) {
@@ -410,45 +590,15 @@ function TileFitted({ tile, isSelected, isSyncSelected, onSelect, onToggleSync, 
         </div>
       </div>
 
-      {!isOffline && mode === 'live' && (
-        <div
-          onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = ((e.clientX - rect.left) / rect.width) * 100;
-            setScrubPosition(Math.max(0, Math.min(100, x)));
-          }}
-          onMouseLeave={() => setScrubPosition(null)}
-          style={{
-            position: 'absolute', left: 0, right: 0, bottom: 0,
-            height: 18,
-            opacity: showOverlay ? 1 : 0,
-            transition: 'opacity 200ms ease',
-            cursor: 'ew-resize',
-            pointerEvents: showOverlay ? 'auto' : 'none',
-            display: 'flex', alignItems: 'flex-end',
-          }}
-        >
-          <div style={{
-            position: 'relative', width: '100%', height: 3,
-            background: 'rgba(255,255,255,0.15)', margin: '0 6px 3px',
-          }}>
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: tile.status === 'recording' ? tokens.recordingGreen : 'transparent',
-              opacity: 0.85,
-            }} />
-            {tile.motion && [22, 41, 58, 71, 84].map((pos) => (
-              <div key={pos} style={{
-                position: 'absolute', left: `${pos}%`, top: -1, bottom: -1,
-                width: 2, background: tokens.warning,
-              }} />
-            ))}
-            <div style={{
-              position: 'absolute', right: 0, top: -2, bottom: -2, width: 2,
-              background: '#fff', boxShadow: '0 0 6px rgba(255,255,255,0.8)',
-            }} />
-          </div>
-        </div>
+      {!isOffline && (
+        <SlotTimelineOverlay
+          tile={tile}
+          mode={mode}
+          showOverlay={showOverlay}
+          scrubPosition={scrubPosition}
+          setScrubPosition={setScrubPosition}
+          compact
+        />
       )}
     </div>
   );
@@ -584,60 +734,14 @@ function CameraTile({ tile, isSelected, isSyncSelected, onSelect, onToggleSync, 
         </div>
       </div>
 
-      {!isOffline && mode === 'live' && (
-        <div
-          onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = ((e.clientX - rect.left) / rect.width) * 100;
-            setScrubPosition(Math.max(0, Math.min(100, x)));
-          }}
-          onMouseLeave={() => setScrubPosition(null)}
-          style={{
-            position: 'absolute', left: 0, right: 0, bottom: 0,
-            height: 22,
-            background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.5))',
-            opacity: showOverlay ? 1 : 0,
-            transition: 'opacity 200ms ease',
-            cursor: 'ew-resize',
-            pointerEvents: showOverlay ? 'auto' : 'none',
-            display: 'flex', alignItems: 'flex-end',
-          }}
-        >
-          <div style={{
-            position: 'relative', width: '100%', height: 4,
-            background: 'rgba(255,255,255,0.15)', margin: '0 8px 4px',
-          }}>
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: tile.status === 'recording' ? tokens.recordingGreen : 'transparent',
-              opacity: 0.85,
-            }} />
-            {tile.motion && [22, 41, 58, 71, 84].map((pos) => (
-              <div key={pos} style={{
-                position: 'absolute', left: `${pos}%`, top: -1, bottom: -1,
-                width: 2, background: tokens.warning,
-              }} />
-            ))}
-            <div style={{
-              position: 'absolute', right: 0, top: -3, bottom: -3, width: 2,
-              background: '#fff', boxShadow: '0 0 6px rgba(255,255,255,0.8)',
-            }} />
-            {scrubPosition !== null && (
-              <div style={{
-                position: 'absolute', left: `${scrubPosition}%`, top: -8, bottom: -8,
-                width: 1, background: '#fff', pointerEvents: 'none',
-              }}>
-                <div style={{
-                  position: 'absolute', bottom: 14, left: -22,
-                  background: 'rgba(0,0,0,0.85)', color: '#fff',
-                  fontSize: 10, padding: '3px 6px', borderRadius: 3,
-                  fontFamily: 'ui-monospace, monospace', whiteSpace: 'nowrap',
-                  backdropFilter: 'blur(8px)',
-                }}>-{Math.round((100 - scrubPosition) / 100 * 15)}min</div>
-              </div>
-            )}
-          </div>
-        </div>
+      {!isOffline && (
+        <SlotTimelineOverlay
+          tile={tile}
+          mode={mode}
+          showOverlay={showOverlay}
+          scrubPosition={scrubPosition}
+          setScrubPosition={setScrubPosition}
+        />
       )}
     </div>
   );
@@ -1421,6 +1525,7 @@ export default function DC3Monitoring() {
   const tokens = useTokens();
   const viewportWidth = useViewportWidth();
   const [siteState, setSiteState] = useState(sites);
+  const [libraryTab, setLibraryTab] = useState('cameras');
   const [selectedTile, setSelectedTile] = useState(1);
   const [mode, setMode] = useState('playback');
 
@@ -1632,9 +1737,9 @@ export default function DC3Monitoring() {
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
               <div style={{
-                fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2,
-                color: tokens.textHint, fontWeight: 600, flex: 1,
-              }}>Camera library</div>
+                fontSize: 12.5,
+                color: tokens.textPrimary, fontWeight: 600, flex: 1,
+              }}>Content List</div>
               <IconButton
                 icon={sitesPanelCompact ? PanelLeftOpen : PanelLeftClose}
                 label={sitesPanelCompact ? 'Expand panel' : 'Compact panel'}
@@ -1642,49 +1747,76 @@ export default function DC3Monitoring() {
               />
             </div>
 
-            {!sitesPanelCompact && (
-              <div style={{ padding: '8px 14px 6px' }}>
-                <div style={{
-                  display: 'flex', gap: 4, background: tokens.divider,
-                  padding: 3, borderRadius: 5,
-                }}>
-                  {['Sites', 'Layouts', 'Map'].map((tab, i) => (
-                    <button key={tab} style={{
-                      flex: 1, padding: '6px 10px',
-                      background: i === 0 ? tokens.bgPanel : 'transparent',
-                      border: 'none', borderRadius: 3, cursor: 'pointer',
-                      fontSize: 12, fontWeight: i === 0 ? 600 : 500,
-                      color: i === 0 ? tokens.textPrimary : tokens.textSecondary,
-                      boxShadow: i === 0 ? tokens.shadow1 : 'none',
-                    }}>{tab}</button>
-                  ))}
-                </div>
+            <div style={{ padding: sitesPanelCompact ? '8px 10px 6px' : '8px 14px 6px' }}>
+              <div style={{
+                display: 'flex',
+                gap: 2,
+                background: tokens.bgApp,
+                padding: 3,
+                borderRadius: 8,
+              }}>
+                <LibraryTabButton
+                  active={libraryTab === 'cameras'}
+                  label="Cameras"
+                  icon={Camera}
+                  onClick={() => setLibraryTab('cameras')}
+                  compact={sitesPanelCompact}
+                />
+                <LibraryTabButton
+                  active={libraryTab === 'layouts'}
+                  label="Layouts"
+                  icon={Grid3x3}
+                  onClick={() => setLibraryTab('layouts')}
+                  compact={sitesPanelCompact}
+                />
+                <LibraryTabButton
+                  active={libraryTab === 'tbd1'}
+                  label="TBD"
+                  onClick={() => setLibraryTab('tbd1')}
+                  compact={sitesPanelCompact}
+                  placeholder
+                />
+                <LibraryTabButton
+                  active={libraryTab === 'tbd2'}
+                  label="TBD"
+                  onClick={() => setLibraryTab('tbd2')}
+                  compact={sitesPanelCompact}
+                  placeholder
+                />
               </div>
-            )}
+            </div>
 
             <div style={{
               padding: sitesPanelCompact ? '8px 10px' : '0px 12px 8px',
-              display: 'flex', gap: 6,
             }}>
               <div style={{
-                flex: 1, display: 'flex', alignItems: 'center', gap: 6,
+                display: 'flex', alignItems: 'center', gap: 6,
                 background: tokens.bgApp, border: `1px solid ${tokens.border}`,
                 borderRadius: 4, padding: sitesPanelCompact ? '5px 8px' : '6px 10px',
+                minWidth: 0,
               }}>
-                <Search size={12} color={tokens.textHint} />
+                <Search size={12} color={tokens.textHint} style={{ flexShrink: 0 }} />
                 <input placeholder="Search…" style={{
                   background: 'transparent', border: 'none', outline: 'none',
                   flex: 1, fontSize: 12, color: tokens.textPrimary,
+                  minWidth: 0,
                 }} />
+                <Filter size={13} color={tokens.textHint} style={{ cursor: 'pointer', flexShrink: 0 }} />
               </div>
-              {!sitesPanelCompact && <IconButton icon={Filter} label="Filter" />}
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '4px 4px 12px' }}>
-              {siteState.map((site) => (
-                <SiteRow key={site.name} site={site} onToggle={toggleSite} compact={sitesPanelCompact} />
-              ))}
-            </div>
+            {libraryTab === 'cameras' && (
+              <div style={{ flex: 1, overflowY: 'auto', padding: '4px 4px 12px' }}>
+                {siteState.map((site) => (
+                  <SiteRow key={site.name} site={site} onToggle={toggleSite} compact={sitesPanelCompact} />
+                ))}
+              </div>
+            )}
+
+            {libraryTab === 'layouts' && <LayoutLibraryList compact={sitesPanelCompact} />}
+
+            {libraryTab === 'tbd1' && <PlaceholderLibraryPanel label="Tab 3" />}
+            {libraryTab === 'tbd2' && <PlaceholderLibraryPanel label="Tab 4" />}
 
             <div style={{
               padding: sitesPanelCompact ? '8px 12px' : '10px 16px',
